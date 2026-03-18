@@ -4,8 +4,10 @@ export const sheetsWriteRequestSchema = z.object({
   spreadsheetId: z
     .string()
     .trim()
-    .min(5, "Informe um ID de planilha valido."),
+    .min(5, "Informe um ID de planilha valido.")
+    .optional(),
   sheetName: z.string().trim().min(1, "Informe o nome da aba."),
+  searchTerm: z.string().trim().optional().default(""),
   rows: z
     .array(
       z.object({

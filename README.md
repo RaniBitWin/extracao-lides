@@ -45,10 +45,16 @@ Principais variáveis:
 - `DEFAULT_SHEET_NAME`: nome padrão da aba
 - `COLLECTION_MOCK_MODE`: quando `true`, a coleta roda com dados simulados
 - `GOOGLE_MAPS_API_KEY`: chave para futura integração com Places API
-- `GOOGLE_SERVICE_ACCOUNT_EMAIL`: service account do Google Sheets
-- `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`: chave privada da service account
-- `GOOGLE_PROJECT_ID`: projeto Google Cloud
+- `GOOGLE_CLIENT_EMAIL`: e-mail da service account do Google Sheets
+- `GOOGLE_PRIVATE_KEY`: chave privada da service account
+- `GOOGLE_SHEET_ID`: ID padrao da planilha usada pelo backend
+- `GOOGLE_SERVICE_ACCOUNT_JSON_PATH`: caminho opcional para o JSON da service account
 - `VITE_API_BASE_URL`: URL do backend consumida pelo frontend
+
+Voce pode autenticar de duas formas:
+
+- com `GOOGLE_SERVICE_ACCOUNT_JSON_PATH` apontando para o arquivo JSON da service account
+- ou com `GOOGLE_CLIENT_EMAIL` e `GOOGLE_PRIVATE_KEY` via variaveis de ambiente
 
 ## Execução local
 
@@ -103,6 +109,7 @@ Exemplo de payload:
 {
   "spreadsheetId": "planilha-id",
   "sheetName": "Leads",
+  "searchTerm": "restaurantes em Sao Jose SC",
   "rows": [
     {
       "placeId": "abc123",
@@ -114,6 +121,8 @@ Exemplo de payload:
 }
 ```
 
+`spreadsheetId` pode ser omitido se `GOOGLE_SHEET_ID` estiver configurado no ambiente.
+
 ## Estado atual
 
 Esta base esta pronta para rodar localmente e para evoluir as integracoes reais. A coleta e a escrita estao estruturadas em servicos independentes.
@@ -121,7 +130,42 @@ Esta base esta pronta para rodar localmente e para evoluir as integracoes reais.
 No momento:
 
 - a coleta pode rodar em modo simulado para facilitar o desenvolvimento local
-- a escrita em Sheets esta preparada por modulo e validacao, com ponto unico para ligar a API oficial
+- a escrita em Sheets usa `googleapis`, inicializa a aba, cria cabecalhos e faz deduplicacao por nome + endereco
+
+## Teste manual da integracao com Sheets
+
+1. Configure `COLLECTION_MOCK_MODE=false`
+2. Configure a autenticacao com JSON ou variaveis de ambiente
+3. Compartilhe a planilha com o e-mail da service account
+4. Suba o backend com `npm run dev:backend`
+5. Envie uma requisicao para `POST /api/sheets/write`
+
+Exemplo:
+
+```bash
+curl -X POST http://localhost:3001/api/sheets/write \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sheetName": "Leads",
+    "searchTerm": "restaurantes em Sao Jose SC",
+    "rows": [
+      {
+        "placeId": "abc123",
+        "name": "Restaurante Exemplo",
+        "address": "Rua Central, 100 - Sao Jose/SC",
+        "phone": "(48) 3333-4444"
+      },
+      {
+        "placeId": "abc124",
+        "name": "Restaurante Exemplo",
+        "address": "Rua Central, 100 - Sao Jose/SC",
+        "phone": null
+      }
+    ]
+  }'
+```
+
+Se a aba nao existir, ela sera criada. Se estiver vazia, os cabecalhos serao inseridos automaticamente.
 
 ## Proximos passos
 

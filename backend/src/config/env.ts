@@ -16,9 +16,10 @@ const envSchema = z.object({
     .transform((value) => value === "true")
     .default("true"),
   GOOGLE_MAPS_API_KEY: z.string().optional(),
-  GOOGLE_SERVICE_ACCOUNT_EMAIL: z.string().optional(),
-  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: z.string().optional(),
-  GOOGLE_PROJECT_ID: z.string().optional(),
+  GOOGLE_CLIENT_EMAIL: z.string().optional(),
+  GOOGLE_PRIVATE_KEY: z.string().optional(),
+  GOOGLE_SHEET_ID: z.string().optional(),
+  GOOGLE_SERVICE_ACCOUNT_JSON_PATH: z.string().optional(),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);
