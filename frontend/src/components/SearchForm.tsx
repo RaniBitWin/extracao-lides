@@ -44,6 +44,30 @@ export function SearchForm({
       </div>
 
       <div className="field">
+        <label htmlFor="city">Cidade</label>
+        <input
+          id="city"
+          name="city"
+          value={formValues.city}
+          onChange={(event) => updateField("city", event.target.value)}
+          placeholder="Sao Jose"
+          required
+        />
+      </div>
+
+      <div className="field">
+        <label htmlFor="state">Estado</label>
+        <input
+          id="state"
+          name="state"
+          value={formValues.state}
+          onChange={(event) => updateField("state", event.target.value)}
+          placeholder="SC"
+          required
+        />
+      </div>
+
+      <div className="field">
         <label htmlFor="maxResults">Quantidade maxima de resultados</label>
         <input
           id="maxResults"
@@ -67,7 +91,6 @@ export function SearchForm({
           value={formValues.spreadsheetId}
           onChange={(event) => updateField("spreadsheetId", event.target.value)}
           placeholder="1AbCdEf..."
-          required
         />
       </div>
 

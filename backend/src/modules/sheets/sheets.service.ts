@@ -1,5 +1,6 @@
 import { env } from "../../config/env.js";
 import { AppError } from "../../lib/errors.js";
+import type { CollectedPlace } from "../collection/collection.types.js";
 import { sheetsClient } from "./sheets.client.js";
 import type { WriteSheetsInput, WriteSheetsResult } from "./sheets.types.js";
 
@@ -25,14 +26,6 @@ export class SheetsService {
       "Preparando escrita na planilha",
     );
 
-    if (input.rows.length === 0) {
-      throw new AppError(
-        "Nenhum resultado foi enviado para gravacao.",
-        400,
-        "EMPTY_ROWS",
-      );
-    }
-
     if (!spreadsheetId) {
       throw new AppError(
         "Informe spreadsheetId na requisicao ou configure GOOGLE_SHEET_ID.",
@@ -42,18 +35,8 @@ export class SheetsService {
     }
 
     if (env.COLLECTION_MOCK_MODE) {
-      const normalizedRows = input.rows.map((row) => this.normalizePlace(row));
+      const normalizedRows = input.rows.map((row) => this.normalizeLead(row));
       const deduplicated = this.removeInternalDuplicates(normalizedRows);
-
-      logger.info(
-        {
-          spreadsheetId,
-          sheetName: input.sheetName,
-          rowsWritten: deduplicated.uniqueRows.length,
-          ignoredDuplicates: deduplicated.ignoredDuplicates,
-        },
-        "Gravacao simulada concluida",
-      );
 
       return {
         spreadsheetId,
@@ -70,9 +53,36 @@ export class SheetsService {
     }
 
     try {
-      await sheetsClient.ensureSheetInitialized(spreadsheetId, input.sheetName);
+      await sheetsClient.ensureSheetInitialized(
+        spreadsheetId,
+        input.sheetName,
+        logger,
+      );
 
-      const normalizedRows = input.rows.map((row) => this.normalizePlace(row));
+      if (input.rows.length === 0) {
+        logger.info(
+          {
+            spreadsheetId,
+            sheetName: input.sheetName,
+          },
+          "Cabecalho da aba garantido sem linhas para inserir",
+        );
+
+        return {
+          spreadsheetId,
+          sheetName: input.sheetName,
+          totalCollected: 0,
+          totalInserted: 0,
+          totalIgnored: 0,
+          totalWithError: 0,
+          insertedRows: 0,
+          ignoredDuplicates: 0,
+          mode: "google",
+          message: "Cabecalho da planilha garantido sem novas linhas para gravacao.",
+        };
+      }
+
+      const normalizedRows = input.rows.map((row) => this.normalizeLead(row));
       const deduplicated = this.removeInternalDuplicates(normalizedRows);
       const existingRows = await sheetsClient.getExistingEntries(
         spreadsheetId,
@@ -93,15 +103,7 @@ export class SheetsService {
       });
 
       const ignoredBySheet = deduplicated.uniqueRows.length - rowsToInsert.length;
-      const collectedAt = new Date().toISOString();
-      const normalizedSearchTerm = this.normalizeText(input.searchTerm ?? "");
-      const values = rowsToInsert.map((row) => [
-        collectedAt,
-        normalizedSearchTerm,
-        row.name,
-        row.address,
-        row.phone ?? "",
-      ]);
+      const values = rowsToInsert.map((row) => this.toSheetRow(row));
 
       await sheetsClient.appendRows(spreadsheetId, input.sheetName, values);
 
@@ -142,12 +144,41 @@ export class SheetsService {
     }
   }
 
-  private normalizePlace(row: WriteSheetsInput["rows"][number]) {
+  private toSheetRow(row: CollectedPlace) {
+    return [
+      row.collectedAt,
+      row.searchTerm,
+      row.name,
+      row.address,
+      row.neighborhood,
+      row.city,
+      row.state,
+      row.postcode,
+      row.phone,
+      row.website,
+      row.latitude ?? "",
+      row.longitude ?? "",
+      row.source,
+      row.placeId,
+      row.status,
+      row.runId,
+    ];
+  }
+
+  private normalizeLead(row: CollectedPlace): CollectedPlace {
     return {
       ...row,
       name: this.normalizeText(row.name),
       address: this.normalizeText(row.address),
+      neighborhood: this.normalizeText(row.neighborhood),
+      city: this.normalizeText(row.city),
+      state: this.normalizeText(row.state),
+      postcode: this.normalizeText(row.postcode),
       phone: this.normalizePhone(row.phone),
+      website: this.normalizeWebsite(row.website),
+      latitude: this.normalizeCoordinate(row.latitude),
+      longitude: this.normalizeCoordinate(row.longitude),
+      source: "geoapify",
     };
   }
 
@@ -155,12 +186,23 @@ export class SheetsService {
     return value.trim().replace(/\s+/g, " ");
   }
 
-  private normalizePhone(value: string | null) {
-    if (!value) {
-      return "";
+  private normalizePhone(value: string) {
+    return value
+      .trim()
+      .replace(/\s+/g, " ")
+      .replace(/[^\d+()\-\s]/g, "");
+  }
+
+  private normalizeWebsite(value: string) {
+    return value.trim();
+  }
+
+  private normalizeCoordinate(value: number | null) {
+    if (typeof value !== "number" || Number.isNaN(value)) {
+      return null;
     }
 
-    return this.normalizeText(value);
+    return Number(value.toFixed(6));
   }
 
   private canonicalize(value: string) {
@@ -174,9 +216,9 @@ export class SheetsService {
     return `${this.canonicalize(name)}::${this.canonicalize(address)}`;
   }
 
-  private removeInternalDuplicates(rows: WriteSheetsInput["rows"]) {
+  private removeInternalDuplicates(rows: CollectedPlace[]) {
     const seen = new Set<string>();
-    const uniqueRows: WriteSheetsInput["rows"] = [];
+    const uniqueRows: CollectedPlace[] = [];
     let ignoredDuplicates = 0;
 
     for (const row of rows) {

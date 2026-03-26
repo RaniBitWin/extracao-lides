@@ -1,4 +1,5 @@
 import type {
+  CollectionDecision,
   CollectionRequest,
   CollectionResponse,
   WriteSheetsRequest,
@@ -35,6 +36,25 @@ export function startCollection(payload: CollectionRequest) {
   return request<CollectionResponse>("/api/collection/start", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function getCollection(runId: string) {
+  return request<CollectionResponse>(`/api/collection/${runId}`, {
+    method: "GET",
+  });
+}
+
+export function resumeCollection(runId: string) {
+  return request<CollectionResponse>(`/api/collection/${runId}/resume`, {
+    method: "POST",
+  });
+}
+
+export function savePauseDecision(runId: string, decision: CollectionDecision) {
+  return request<CollectionResponse>(`/api/collection/${runId}/decision`, {
+    method: "POST",
+    body: JSON.stringify({ decision }),
   });
 }
 

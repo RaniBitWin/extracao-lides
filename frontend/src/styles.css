@@ -110,6 +110,10 @@ input {
   font-weight: 700;
 }
 
+.inline-action {
+  grid-column: auto;
+}
+
 .secondary-button {
   background: #0f172a;
   color: #fff;
@@ -222,6 +226,38 @@ input {
   color: #64748b;
 }
 
+.status-card {
+  margin-bottom: 20px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.status-card p {
+  margin: 6px 0;
+}
+
+.pause-actions {
+  margin-bottom: 20px;
+  padding: 18px;
+  border-radius: 16px;
+  background: #fff7ed;
+  border: 1px solid #fdba74;
+}
+
+.pause-copy {
+  margin-top: 0;
+  color: #9a3412;
+  font-weight: 600;
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 @media (max-width: 800px) {
   .form-grid,
   .stats-grid {
@@ -231,5 +267,9 @@ input {
   .section-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .button-row {
+    flex-direction: column;
   }
 }
