@@ -61,6 +61,7 @@ export type CollectionResponse = {
   totalWithError: number;
   geoapifyCategory: string | null;
   geoapifyCategoryLabel: string | null;
+  geoapifyCategoryTrusted?: boolean;
   locationQuery: string | null;
   resolvedLocation: string | null;
   startedAt: string;
@@ -90,3 +91,13 @@ export type WriteSheetsResponse = {
 };
 
 export type CollectionDecision = "continue_next_day" | "wait_for_paid_plan";
+
+export type RoutePlan = {
+  id: string;
+  city: string;
+  predominantNeighborhood: string;
+  stopCount: number;
+  estimatedDistanceKm: number;
+  stops: CollectedPlace[];
+  externalLink: string;
+};

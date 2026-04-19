@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CollectionStatusPanel } from "../components/CollectionStatusPanel";
+import { ResultsPreviewTable } from "../components/ResultsPreviewTable";
+import { RoutePlanningPanel } from "../components/RoutePlanningPanel";
 import { SearchForm } from "../components/SearchForm";
 import {
+  getCollection,
   resumeCollection,
   savePauseDecision,
   startCollection,
@@ -20,30 +24,57 @@ const initialValues: CollectionRequest = {
   sheetName: "Leads",
 };
 
-function formatPauseReason(reason: CollectionResponse["pauseReason"]) {
-  if (reason === "daily_credit_limit_estimated") {
-    return "Limite diario estimado de creditos";
-  }
-
-  if (reason === "geoapify_rate_limit") {
-    return "Rate limit da Geoapify";
-  }
-
-  if (reason === "geoapify_quota_exceeded") {
-    return "Quota/creditos da Geoapify";
-  }
-
-  return "Sem pausa";
-}
-
 export function HomePage() {
+  const routePlanningRef = useRef<HTMLElement | null>(null);
   const [loading, setLoading] = useState(false);
   const [decisionLoading, setDecisionLoading] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [collectionResult, setCollectionResult] =
     useState<CollectionResponse | null>(null);
+
+  const previewItems = useMemo(
+    () => collectionResult?.items ?? [],
+    [collectionResult],
+  );
+  const executionInProgress =
+    loading ||
+    resumeLoading ||
+    isPolling ||
+    collectionResult?.status === "running";
+
+  useEffect(() => {
+    if (!collectionResult || collectionResult.status !== "running") {
+      setIsPolling(false);
+      return undefined;
+    }
+
+    setIsPolling(true);
+    const intervalId = window.setInterval(async () => {
+      try {
+        const nextResult = await getCollection(collectionResult.runId);
+        setCollectionResult(nextResult);
+
+        if (nextResult.status !== "running") {
+          setIsPolling(false);
+          setSuccessMessage(nextResult.message);
+        }
+      } catch (error) {
+        setIsPolling(false);
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "Falha ao atualizar o status da execucao.",
+        );
+      }
+    }, 3000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [collectionResult]);
 
   async function handleCollection(values: CollectionRequest) {
     try {
@@ -110,174 +141,52 @@ export function HomePage() {
     }
   }
 
+  function handleGoToRoutes() {
+    routePlanningRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <main className="page-shell">
-      <section className="hero">
-        <p className="eyebrow">Geoapify + Sheets</p>
-        <h1>Extracao com pausa por limite e retomada do ponto salvo</h1>
-        <p className="hero-copy">
-          A coleta agora usa Geoapify como fonte principal, monitora consumo
-          estimado de creditos, pausa quando necessario e grava no Google Sheets
-          durante a execucao.
-        </p>
+      <section className="hero operational-hero">
+        <div>
+          <p className="eyebrow">Operacao Geoapify + Sheets</p>
+          <h1>Painel operacional de coleta e preparacao de rotas</h1>
+          <p className="hero-copy">
+            Inicie coletas, acompanhe o progresso em tempo real, revise os leads encontrados
+            e organize blocos de visitas sem sair do painel.
+          </p>
+        </div>
+        <div className="hero-sidecard panel">
+          <p className="hero-metric-label">Fluxo atual</p>
+          <strong>Buscar, exportar e preparar visitas</strong>
+          <span>Pronto para operacao local e planejamento logistico inicial.</span>
+        </div>
       </section>
 
       <SearchForm
         initialValues={initialValues}
         loading={loading}
+        disabled={executionInProgress}
         onSubmit={handleCollection}
       />
 
       {errorMessage ? <div className="feedback error">{errorMessage}</div> : null}
-      {successMessage ? (
-        <div className="feedback success">{successMessage}</div>
-      ) : null}
+      {successMessage ? <div className="feedback success">{successMessage}</div> : null}
 
-      <section className="panel">
-        <div className="section-header">
-          <div>
-            <h2>Status da execucao</h2>
-            <p>Resumo da coleta, progresso salvo e situacao atual.</p>
-          </div>
-        </div>
+      <CollectionStatusPanel
+        collectionResult={collectionResult}
+        polling={isPolling}
+        decisionLoading={decisionLoading}
+        resumeLoading={resumeLoading}
+        onDecision={handleDecision}
+        onResume={handleResume}
+        onGoToRoutes={handleGoToRoutes}
+      />
 
-        {!collectionResult ? (
-          <p className="empty-state">Nenhuma execucao iniciada ainda.</p>
-        ) : (
-          <>
-            <div className="stats-grid">
-              <article>
-                <span>Status</span>
-                <strong>{collectionResult.status}</strong>
-              </article>
-              <article>
-                <span>Coletados</span>
-                <strong>{collectionResult.totalCollected}</strong>
-              </article>
-              <article>
-                <span>Inseridos</span>
-                <strong>{collectionResult.totalInserted}</strong>
-              </article>
-              <article>
-                <span>Ignorados</span>
-                <strong>{collectionResult.totalIgnored}</strong>
-              </article>
-              <article>
-                <span>Erros</span>
-                <strong>{collectionResult.totalWithError}</strong>
-              </article>
-              <article>
-                <span>Proximo offset</span>
-                <strong>{collectionResult.nextOffset}</strong>
-              </article>
-              <article>
-                <span>Creditos usados</span>
-                <strong>{collectionResult.estimatedCreditsUsed}</strong>
-              </article>
-              <article>
-                <span>Creditos restantes</span>
-                <strong>{collectionResult.estimatedCreditsRemaining}</strong>
-              </article>
-              <article>
-                <span>Motivo da pausa</span>
-                <strong>{formatPauseReason(collectionResult.pauseReason)}</strong>
-              </article>
-              <article>
-                <span>Raio atual</span>
-                <strong>{collectionResult.currentRadiusMeters} m</strong>
-              </article>
-              <article>
-                <span>Falha</span>
-                <strong>{collectionResult.failureType ?? "nenhuma"}</strong>
-              </article>
-            </div>
+      <ResultsPreviewTable items={previewItems} />
 
-            <div className="status-card">
-              <p>
-                <strong>Execucao:</strong> {collectionResult.runId}
-              </p>
-              <p>
-                <strong>Categoria:</strong>{" "}
-                {collectionResult.geoapifyCategoryLabel ?? "Nao resolvida"}
-              </p>
-              <p>
-                <strong>Cidade/Estado:</strong> {collectionResult.city} /{" "}
-                {collectionResult.state}
-              </p>
-              <p>
-                <strong>Local resolvido:</strong>{" "}
-                {collectionResult.resolvedLocation ?? "Nao resolvido"}
-              </p>
-              <p>
-                <strong>Mensagem:</strong> {collectionResult.message}
-              </p>
-            </div>
-
-            {collectionResult.status === "paused" ? (
-              <div className="pause-actions">
-                <p className="pause-copy">
-                  A extracao foi pausada. Escolha como deseja seguir e, quando
-                  fizer sentido, use a retomada para continuar do ponto salvo.
-                </p>
-                <div className="button-row">
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={() => handleDecision("continue_next_day")}
-                    disabled={decisionLoading}
-                  >
-                    {decisionLoading
-                      ? "Salvando..."
-                      : "Encerrar e continuar amanha"}
-                  </button>
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={() => handleDecision("wait_for_paid_plan")}
-                    disabled={decisionLoading}
-                  >
-                    {decisionLoading
-                      ? "Salvando..."
-                      : "Aguardar plano pago"}
-                  </button>
-                  <button
-                    className="primary-button inline-action"
-                    type="button"
-                    onClick={handleResume}
-                    disabled={resumeLoading}
-                  >
-                    {resumeLoading ? "Retomando..." : "Retomar execucao"}
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="results-table-wrapper">
-              <table className="results-table">
-                <thead>
-                  <tr>
-                    <th>Nome</th>
-                    <th>Endereco</th>
-                    <th>Cidade</th>
-                    <th>Telefone</th>
-                    <th>Website</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {collectionResult.items.map((item) => (
-                    <tr key={item.placeId}>
-                      <td>{item.name}</td>
-                      <td>{item.address}</td>
-                      <td>{item.city}</td>
-                      <td>{item.phone}</td>
-                      <td>{item.website || ""}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+      <section ref={routePlanningRef}>
+        <RoutePlanningPanel items={previewItems} />
       </section>
     </main>
   );

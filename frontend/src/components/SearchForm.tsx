@@ -4,12 +4,14 @@ import type { CollectionRequest } from "../types/api";
 type SearchFormProps = {
   initialValues: CollectionRequest;
   loading: boolean;
+  disabled?: boolean;
   onSubmit: (values: CollectionRequest) => Promise<void>;
 };
 
 export function SearchForm({
   initialValues,
   loading,
+  disabled = false,
   onSubmit,
 }: SearchFormProps) {
   const [formValues, setFormValues] = useState<CollectionRequest>(initialValues);
@@ -38,7 +40,8 @@ export function SearchForm({
           name="searchTerm"
           value={formValues.searchTerm}
           onChange={(event) => updateField("searchTerm", event.target.value)}
-          placeholder="restaurantes em Sao Jose SC"
+          placeholder="restaurantes, pizzarias, padarias..."
+          disabled={disabled}
           required
         />
       </div>
@@ -51,6 +54,7 @@ export function SearchForm({
           value={formValues.city}
           onChange={(event) => updateField("city", event.target.value)}
           placeholder="Sao Jose"
+          disabled={disabled}
           required
         />
       </div>
@@ -63,6 +67,7 @@ export function SearchForm({
           value={formValues.state}
           onChange={(event) => updateField("state", event.target.value)}
           placeholder="SC"
+          disabled={disabled}
           required
         />
       </div>
@@ -79,6 +84,7 @@ export function SearchForm({
           onChange={(event) =>
             updateField("maxResults", Number(event.target.value))
           }
+          disabled={disabled}
           required
         />
       </div>
@@ -91,6 +97,7 @@ export function SearchForm({
           value={formValues.spreadsheetId}
           onChange={(event) => updateField("spreadsheetId", event.target.value)}
           placeholder="1AbCdEf..."
+          disabled={disabled}
         />
       </div>
 
@@ -102,12 +109,13 @@ export function SearchForm({
           value={formValues.sheetName}
           onChange={(event) => updateField("sheetName", event.target.value)}
           placeholder="Leads"
+          disabled={disabled}
           required
         />
       </div>
 
-      <button className="primary-button" type="submit" disabled={loading}>
-        {loading ? "Processando..." : "Iniciar coleta"}
+      <button className="primary-button" type="submit" disabled={loading || disabled}>
+        {loading ? "Buscando..." : "Buscar e Exportar"}
       </button>
     </form>
   );
