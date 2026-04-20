@@ -251,6 +251,16 @@ export class SheetsClient {
     return response.data.values ?? [];
   }
 
+  async getSheetRows(spreadsheetId: string, sheetName: string) {
+    const sheetsApi = await this.getSheetsApi();
+    const response = await sheetsApi.spreadsheets.values.get({
+      spreadsheetId,
+      range: getSheetRange(sheetName, "A2:P"),
+    });
+
+    return response.data.values ?? [];
+  }
+
   async appendRows(spreadsheetId: string, sheetName: string, values: Array<Array<string | number>>) {
     if (values.length === 0) {
       return;

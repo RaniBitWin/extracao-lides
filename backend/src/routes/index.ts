@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { registerCollectionRoutes } from "./collection.routes.js";
+import { registerLogisticsRoutes } from "./routes.routes.js";
 import { registerSheetsRoutes } from "./sheets.routes.js";
 
 export async function registerRoutes(app: FastifyInstance) {
@@ -9,5 +10,6 @@ export async function registerRoutes(app: FastifyInstance) {
   }));
 
   await registerCollectionRoutes(app);
+  await registerLogisticsRoutes(app);
   await registerSheetsRoutes(app);
 }

@@ -98,6 +98,29 @@ export type RoutePlan = {
   predominantNeighborhood: string;
   stopCount: number;
   estimatedDistanceKm: number;
-  stops: CollectedPlace[];
+  visits: CollectedPlace[];
   externalLink: string;
+};
+
+export type GenerateRoutesRequest = {
+  spreadsheetId?: string;
+  sheetName: string;
+  city?: string;
+  neighborhood?: string;
+  groupSize: number;
+};
+
+export type GenerateRoutesResponse = {
+  status: "success";
+  totalEligibleLeads: number;
+  totalRoutes: number;
+  routes: Array<{
+    routeId: string;
+    city: string;
+    predominantNeighborhood: string;
+    stopCount: number;
+    estimatedDistanceKm: number;
+    visits: CollectedPlace[];
+    externalLink: string;
+  }>;
 };

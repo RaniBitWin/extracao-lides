@@ -424,6 +424,15 @@ select {
   gap: 16px;
 }
 
+.route-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: #334155;
+  font-weight: 700;
+}
+
 .route-card {
   border: 1px solid #e2e8f0;
   border-radius: 18px;

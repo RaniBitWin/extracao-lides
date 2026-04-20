@@ -1,51 +1,45 @@
-import { useMemo, useState } from "react";
-import type { CollectedPlace, RoutePlan } from "../types/api";
-import { buildRoutePlans } from "../utils/routePlanning";
+import { useState } from "react";
+import { generateRoutes } from "../services/api";
+import type { CollectionResponse, GenerateRoutesResponse } from "../types/api";
 
 type RoutePlanningPanelProps = {
-  items: CollectedPlace[];
+  collectionResult: CollectionResponse | null;
 };
 
-function uniqueValues(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean))).sort((left, right) =>
-    left.localeCompare(right),
-  );
-}
-
-export function RoutePlanningPanel({ items }: RoutePlanningPanelProps) {
+export function RoutePlanningPanel({ collectionResult }: RoutePlanningPanelProps) {
   const [cityFilter, setCityFilter] = useState("");
   const [neighborhoodFilter, setNeighborhoodFilter] = useState("");
   const [groupSize, setGroupSize] = useState(12);
-  const [routes, setRoutes] = useState<RoutePlan[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [routesResult, setRoutesResult] = useState<GenerateRoutesResponse | null>(null);
 
-  const routeEligibleItems = useMemo(
-    () =>
-      items.filter(
-        (item) =>
-          item.status === "coletado" &&
-          item.latitude !== null &&
-          item.longitude !== null,
-      ),
-    [items],
-  );
-  const cityOptions = useMemo(
-    () => uniqueValues(routeEligibleItems.map((item) => item.city.trim())),
-    [routeEligibleItems],
-  );
-  const neighborhoodOptions = useMemo(
-    () => uniqueValues(routeEligibleItems.map((item) => item.neighborhood.trim())),
-    [routeEligibleItems],
-  );
+  async function handleGenerateRoutes() {
+    if (!collectionResult) {
+      return;
+    }
 
-  function handleGenerateRoutes() {
-    const nextRoutes = buildRoutePlans({
-      items: routeEligibleItems,
-      cityFilter,
-      neighborhoodFilter,
-      groupSize,
-    });
+    try {
+      setLoading(true);
+      setErrorMessage("");
 
-    setRoutes(nextRoutes);
+      const nextRoutes = await generateRoutes({
+        spreadsheetId: collectionResult.spreadsheetId,
+        sheetName: collectionResult.sheetName,
+        city: cityFilter || undefined,
+        neighborhood: neighborhoodFilter || undefined,
+        groupSize,
+      });
+
+      setRoutesResult(nextRoutes);
+    } catch (error) {
+      setRoutesResult(null);
+      setErrorMessage(
+        error instanceof Error ? error.message : "Falha ao gerar as rotas.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -58,41 +52,28 @@ export function RoutePlanningPanel({ items }: RoutePlanningPanelProps) {
       </div>
 
       <p className="route-helper-copy">
-        Esta etapa usa apenas itens com status <strong>coletado</strong> e com coordenadas
-        disponiveis no frontend atual.
+        Esta etapa agora gera rotas reais a partir dos leads da aba informada no Google Sheets.
       </p>
 
       <div className="route-toolbar">
         <div className="field">
           <label htmlFor="route-city-filter">Cidade</label>
-          <select
+          <input
             id="route-city-filter"
             value={cityFilter}
             onChange={(event) => setCityFilter(event.target.value)}
-          >
-            <option value="">Todas</option>
-            {cityOptions.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </select>
+            placeholder="Filtrar por cidade"
+          />
         </div>
 
         <div className="field">
           <label htmlFor="route-neighborhood-filter">Bairro</label>
-          <select
+          <input
             id="route-neighborhood-filter"
             value={neighborhoodFilter}
             onChange={(event) => setNeighborhoodFilter(event.target.value)}
-          >
-            <option value="">Todos</option>
-            {neighborhoodOptions.map((neighborhood) => (
-              <option key={neighborhood} value={neighborhood}>
-                {neighborhood}
-              </option>
-            ))}
-          </select>
+            placeholder="Filtrar por bairro"
+          />
         </div>
 
         <div className="field">
@@ -107,22 +88,34 @@ export function RoutePlanningPanel({ items }: RoutePlanningPanelProps) {
           />
         </div>
 
-        <button className="primary-button inline-action" type="button" onClick={handleGenerateRoutes}>
-          Gerar rotas
+        <button
+          className="primary-button inline-action"
+          type="button"
+          onClick={handleGenerateRoutes}
+          disabled={!collectionResult || loading}
+        >
+          {loading ? "Gerando..." : "Gerar rotas"}
         </button>
       </div>
 
-      {routes.length === 0 ? (
+      {errorMessage ? <div className="feedback error">{errorMessage}</div> : null}
+
+      {!routesResult || routesResult.routes.length === 0 ? (
         <p className="empty-state">
-          Gere as rotas para visualizar agrupamentos por cidade e bairro com ordem de visitas.
+          Gere as rotas para visualizar agrupamentos reais da planilha por cidade e bairro.
         </p>
       ) : (
         <div className="route-list">
-          {routes.map((route) => (
-            <article key={route.id} className="route-card">
+          <div className="route-summary">
+            <span>{routesResult.totalEligibleLeads} leads elegiveis</span>
+            <span>{routesResult.totalRoutes} rotas geradas</span>
+          </div>
+
+          {routesResult.routes.map((route) => (
+            <article key={route.routeId} className="route-card">
               <div className="route-card-header">
                 <div>
-                  <h3>{route.id}</h3>
+                  <h3>{route.routeId}</h3>
                   <p>
                     {route.city} · {route.predominantNeighborhood}
                   </p>
@@ -142,7 +135,7 @@ export function RoutePlanningPanel({ items }: RoutePlanningPanelProps) {
               </div>
 
               <ol className="route-stop-list">
-                {route.stops.map((stop) => (
+                {route.visits.map((stop) => (
                   <li key={stop.placeId}>
                     <strong>{stop.name}</strong>
                     <span>

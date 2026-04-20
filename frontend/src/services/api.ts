@@ -2,6 +2,8 @@ import type {
   CollectionDecision,
   CollectionRequest,
   CollectionResponse,
+  GenerateRoutesRequest,
+  GenerateRoutesResponse,
   WriteSheetsRequest,
   WriteSheetsResponse,
 } from "../types/api";
@@ -60,6 +62,13 @@ export function savePauseDecision(runId: string, decision: CollectionDecision) {
 
 export function writeToSheets(payload: WriteSheetsRequest) {
   return request<WriteSheetsResponse>("/api/sheets/write", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function generateRoutes(payload: GenerateRoutesRequest) {
+  return request<GenerateRoutesResponse>("/api/routes/generate", {
     method: "POST",
     body: JSON.stringify(payload),
   });

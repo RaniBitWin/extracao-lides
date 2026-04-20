@@ -186,7 +186,7 @@ export function HomePage() {
       <ResultsPreviewTable items={previewItems} />
 
       <section ref={routePlanningRef}>
-        <RoutePlanningPanel items={previewItems} />
+        <RoutePlanningPanel collectionResult={collectionResult} />
       </section>
     </main>
   );
